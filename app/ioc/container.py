@@ -10,7 +10,11 @@ from app.application.use_cases.tenant_use_cases import (
     ListTenantsUseCase,
     DeleteTenantUseCase
 )
-from app.application.handlers.user_event_handlers import UserCreatedEventHandler, UserUpdatedEventHandler
+from app.application.handlers.user_event_handlers import (
+    UserCreatedEventHandler,
+    UserUpdatedEventHandler,
+    UserLoggedInEventHandler,
+)
 from app.infrastructure.authentication.token_service import TokenService
 from app.infrastructure.database.connection import get_db_session
 from app.infrastructure.database.repositories.user_repository import UserRepositoryImpl
@@ -95,6 +99,12 @@ class Container(containers.DeclarativeContainer):
         UserUpdatedEventHandler,
         email_service=email_service,
         message_queue_service=rabbitmq_service,
+    )
+    
+    user_logged_in_event_handler = providers.Factory(
+        UserLoggedInEventHandler,
+        message_queue_service=rabbitmq_service,
+        email_service=email_service,
     )
     
     # Use Cases
@@ -188,10 +198,12 @@ def get_login_use_case_with_session(container: Container, session: AsyncSession)
     user_repo = create_user_repository_with_session(session)
     refresh_token_repo = create_refresh_token_repository_with_session(session)
     token_service = container.token_service()
+    event_dispatcher = container.event_dispatcher()
     return LoginUseCase(
         user_repository=user_repo,
         token_service=token_service,
-        refresh_token_repository=refresh_token_repo
+        refresh_token_repository=refresh_token_repo,
+        event_dispatcher=event_dispatcher
     )
 
 
@@ -248,6 +260,11 @@ def register_event_handlers(container: Container):
     @local_handler.register(event_name="user.updated")
     async def handle_user_updated(event):
         handler = container.user_updated_event_handler()
+        await handler.handle(event)
+    
+    @local_handler.register(event_name="user.logged_in")
+    async def handle_user_logged_in(event):
+        handler = container.user_logged_in_event_handler()
         await handler.handle(event)
     
     @local_handler.register(event_name="*")

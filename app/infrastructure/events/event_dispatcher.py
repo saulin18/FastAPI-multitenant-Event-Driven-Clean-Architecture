@@ -1,7 +1,7 @@
 
 from fastapi_events.dispatcher import dispatch
 
-from app.domain.events.user_events import UserCreatedEvent, UserUpdatedEvent
+from app.domain.events.user_events import UserCreatedEvent, UserLoggedInEvent, UserUpdatedEvent
 from app.domain.interfaces.event_dispatcher import EventDispatcher as IEventDispatcher
 from app.domain.events.tenant_events import TenantCreatedEvent, TenantUpdatedEvent, TenantDeletedEvent
 
@@ -24,4 +24,7 @@ class EventDispatcher(IEventDispatcher):
     
     def dispatch_tenant_deleted(self, event: TenantDeletedEvent) -> None:
         dispatch("tenant.deleted", payload=event.__dict__)
+        
+    def dispatch_user_logged_in(self, event: UserLoggedInEvent) -> None:
+        dispatch("user.logged_in", payload=event.__dict__)
 

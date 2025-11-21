@@ -28,13 +28,13 @@ async def create_tenant(
     request: CreateTenantRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
-    """Create a new tenant."""
+  
     container = _get_container()
     create_tenant_use_case = get_create_tenant_use_case_with_session(container, db)
     try:
         tenant = await create_tenant_use_case.execute(request)
         return TenantResponse(
-            id=tenant.id,
+            id=tenant.tenant_id,
             name=tenant.name,
             domain=tenant.domain,
             is_active=tenant.is_active,
@@ -53,7 +53,7 @@ async def get_tenant(
     tenant_id: UUID,
     db: AsyncSession = Depends(get_db_session),
 ):
-    """Get a tenant by ID."""
+  
     container = _get_container()
     get_tenant_use_case = get_get_tenant_use_case_with_session(container, db)
     try:
@@ -79,7 +79,7 @@ async def update_tenant(
     request: UpdateTenantRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
-    """Update a tenant."""
+  
     container = _get_container()
     update_tenant_use_case = get_update_tenant_use_case_with_session(container, db)
     try:
@@ -106,7 +106,7 @@ async def list_tenants(
     direction: PaginationDirection = Query(PaginationDirection.FORWARD),
     db: AsyncSession = Depends(get_db_session),
 ):
-    """List all tenants with cursor pagination."""
+ 
     container = _get_container()
     list_tenants_use_case = get_list_tenants_use_case_with_session(container, db)
     request = CursorPagedTenantRequest(
@@ -138,7 +138,7 @@ async def delete_tenant(
     tenant_id: UUID,
     db: AsyncSession = Depends(get_db_session),
 ):
-    """Delete a tenant."""
+  
     container = _get_container()
     delete_tenant_use_case = get_delete_tenant_use_case_with_session(container, db)
     try:

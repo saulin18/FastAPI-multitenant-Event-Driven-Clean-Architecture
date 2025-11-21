@@ -2,9 +2,13 @@ from typing import Optional
 from uuid import UUID
 
 from app.domain.entities.user import User
-from app.domain.events.user_events import UserCreatedEvent, UserUpdatedEvent
+from app.domain.events.user_events import (
+    UserCreatedEvent,
+    UserLoggedInEvent,
+    UserUpdatedEvent,
+)
 from app.domain.interfaces.user_repository import UserRepository
-from app.domain.interfaces.event_dispatcher import EventDispatcher
+from app.domain.interfaces.event_dispatcher import EventDispatcher as IEventDispatcher
 from app.domain.interfaces.refresh_token_repository import RefreshTokenRepository
 from app.application.exceptions.user_exceptions import (
     InvalidUserDataError,
@@ -22,7 +26,7 @@ from app.domain.interfaces.token_service import ITokenService
 
 class CreateUserUseCase:
     def __init__(
-        self, user_repository: UserRepository, event_dispatcher: EventDispatcher
+        self, user_repository: UserRepository, event_dispatcher: IEventDispatcher
     ):
         self.user_repository = user_repository
         self.event_dispatcher = event_dispatcher
@@ -35,24 +39,16 @@ class CreateUserUseCase:
         full_name: Optional[str] = None,
         password: str = None,
     ) -> User:
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"   🔍 Checking if email exists: {email}")
         existing_user = await self.user_repository.get_by_email(email)
         if existing_user:
-            logger.warning(f"   ⚠️ User with email {email} already exists")
             raise UserAlreadyExistsError(f"User with email {email} already exists")
 
-        logger.info(f"   🔍 Checking if username exists: {username}")
         existing_user = await self.user_repository.get_by_username(username)
         if existing_user:
-            logger.warning(f"   ⚠️ User with username {username} already exists")
             raise UserAlreadyExistsError(
                 f"User with username {username} already exists"
             )
 
-        logger.info("   📝 Creating User entity...")
         user = User(
             email=email,
             username=username,
@@ -61,11 +57,8 @@ class CreateUserUseCase:
             full_name=full_name,
         )
 
-        logger.info("   💾 Saving user to database...")
         created_user = await self.user_repository.create(user)
-        logger.info(f"   ✅ User saved to database: {created_user.id}")
 
-        logger.info("   📢 Dispatching user.created event...")
         event = UserCreatedEvent(
             user_id=created_user.id,
             email=created_user.email,
@@ -74,7 +67,6 @@ class CreateUserUseCase:
             full_name=created_user.full_name,
         )
         self.event_dispatcher.dispatch_user_created(event)
-        logger.info("   ✅ Event dispatched (non-blocking)")
 
         return created_user
 
@@ -92,7 +84,7 @@ class GetUserUseCase:
 
 class UpdateUserUseCase:
     def __init__(
-        self, user_repository: UserRepository, event_dispatcher: EventDispatcher
+        self, user_repository: UserRepository, event_dispatcher: IEventDispatcher
     ):
         self.user_repository = user_repository
         self.event_dispatcher = event_dispatcher
@@ -127,10 +119,12 @@ class LoginUseCase:
         self,
         user_repository: UserRepository,
         token_service: ITokenService,
+        event_dispatcher: IEventDispatcher,
         refresh_token_repository: RefreshTokenRepository,
     ):
         self.user_repository = user_repository
         self.token_service = token_service
+        self.event_dispatcher = event_dispatcher
         self.refresh_token_repository = refresh_token_repository
 
     async def execute(self, request: LoginRequest) -> TokenResponse:
@@ -149,6 +143,17 @@ class LoginUseCase:
         # Store refresh token in database
         expires_at = self.token_service.get_refresh_token_expires_at()
         await self.refresh_token_repository.create(user.id, refresh_token, expires_at)
+
+        event = UserLoggedInEvent(
+            user_id=user.id,
+            email=user.email,
+            username=user.username,
+            tenant_id=user.tenant_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
+
+        self.event_dispatcher.dispatch_user_logged_in(event)
 
         return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
