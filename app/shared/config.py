@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/fastapi_db"
     database_echo: bool = True
     
+    # Test Database - optional, defaults to test database
+    test_database_url: Optional[str] = None
+    
     # Security - required but with default for development
     secret_key: str = "change-me-in-production-please-use-a-secure-key"
     access_token_expire_minutes: int = 30

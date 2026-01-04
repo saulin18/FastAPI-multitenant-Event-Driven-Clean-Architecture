@@ -1,7 +1,5 @@
 
-
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -55,7 +53,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Middleware to log all requests - MUST be first
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
         try:
@@ -91,7 +88,6 @@ def create_app() -> FastAPI:
     if settings.events_enabled:
         app.add_middleware(EventHandlerASGIMiddleware, handlers=[local_handler])
 
-    # Global exception handler to catch all errors
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         sys.stdout.flush()
